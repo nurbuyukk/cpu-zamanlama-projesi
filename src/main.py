@@ -1,103 +1,229 @@
-python main.py
+# CPU Zamanlama Algoritmaları -
+# Python 3.x
 
-Process_ID,Arrival_Time,CPU_Burst_Time,Priority
-P001,0,4,high
-P002,2,7,normal
-P003,4,10,low
-P004,6,13,high
-P005,8,16,normal
-P006,10,19,low
-P007,12,2,high
-P008,14,5,normal
-P009,16,8,low
-P010,18,11,high
-P011,20,14,normal
-P012,22,17,low
-P013,24,20,high
-P014,26,3,normal
-P015,28,6,low
-P016,30,9,high
-P017,32,12,normal
-P018,34,15,low
-P019,36,18,high
-P020,38,1,normal
-P021,40,4,low
-P022,42,7,high
-P023,44,10,normal
-P024,46,13,low
-P025,48,16,high
-P026,50,19,normal
-P027,52,2,low
-P028,54,5,high
-P029,56,8,normal
-P030,58,11,low
-P031,60,14,high
-P032,62,17,normal
-P033,64,20,low
-P034,66,3,high
-P035,68,6,normal
-P036,70,9,low
-P037,72,12,high
-P038,74,15,normal
-P039,76,18,low
-P040,78,1,high
-P041,80,4,normal
-P042,82,7,low
-P043,84,10,high
-P044,86,13,normal
-P045,88,16,low
-P046,90,19,high
-P047,92,2,normal
-P048,94,5,low
-P049,96,8,high
-P050,98,11,normal
-P051,100,14,low
-P052,102,17,high
-P053,104,20,normal
-P054,106,3,low
-P055,108,6,high
-P056,110,9,normal
-P057,112,12,low
-P058,114,15,high
-P059,116,18,normal
-P060,118,1,low
-P061,120,4,high
-P062,122,7,normal
-P063,124,10,low
-P064,126,13,high
-P065,128,16,normal
-P066,130,19,low
-P067,132,2,high
-P068,134,5,normal
-P069,136,8,low
-P070,138,11,high
-P071,140,14,normal
-P072,142,17,low
-P073,144,20,high
-P074,146,3,normal
-P075,148,6,low
-P076,150,9,high
-P077,152,12,normal
-P078,154,15,low
-P079,156,18,high
-P080,158,1,normal
-P081,160,4,low
-P082,162,7,high
-P083,164,10,normal
-P084,166,13,low
-P085,168,16,high
-P086,170,19,normal
-P087,172,2,low
-P088,174,5,high
-P089,176,8,normal
-P090,178,11,low
-P091,180,14,high
-P092,182,17,normal
-P093,184,20,low
-P094,186,3,high
-P095,188,6,normal
-P096,190,9,low
-P097,192,12,high
-P098,194,15,normal
-P099,196,18,low
-P100,198,1,high
+import threading
+import csv
+import copy
+
+CONTEXT_SWITCH_TIME = 0.001
+RR_QUANTUM = 2
+
+# ---------------- PROCESS SINIFI ----------------
+class Process:
+    def __init__(self, pid, arrival, burst, priority):
+        self.pid = pid
+        self.arrival = arrival
+        self.burst = burst
+        self.remaining = burst
+        self.priority = priority
+        self.finish = 0
+
+# ---------------- CSV OKUMA ----------------
+
+def read_csv(filename):
+    priority_map = {
+        "high": 1,
+        "normal": 2,
+        "low": 3
+    }
+    processes = []
+    with open(filename, newline='') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            processes.append(Process(
+                row['Process_ID'],
+                int(row['Arrival_Time']),
+                int(row['CPU_Burst_Time']),
+                priority_map[row['Priority'].lower()]
+            ))
+    return processes
+
+# ---------------- FCFS ----------------
+
+def fcfs(processes):
+    time = 0
+    timeline = []
+    cs = 0
+    for p in sorted(processes, key=lambda x: x.arrival):
+        if time < p.arrival:
+            timeline.append((time, 'IDLE', p.arrival))
+            time = p.arrival
+        timeline.append((time, p.pid, time + p.burst))
+        cs += 1
+        time += p.burst
+        p.finish = time
+    return timeline, cs
+
+# ---------------- SJF NON-PREEMPTIVE ----------------
+
+def sjf_np(processes):
+    time = 0
+    completed = 0
+    timeline = []
+    cs = 0
+    while completed < len(processes):
+        ready = [p for p in processes if p.arrival <= time and p.remaining > 0]
+        if not ready:
+            time += 1
+            continue
+        p = min(ready, key=lambda x: x.burst)
+        timeline.append((time, p.pid, time + p.burst))
+        time += p.burst
+        p.remaining = 0
+        p.finish = time
+        completed += 1
+        cs += 1
+    return timeline, cs
+
+# ---------------- SJF PREEMPTIVE ----------------
+
+def sjf_p(processes):
+    time = 0
+    timeline = []
+    cs = 0
+    current = None
+    while any(p.remaining > 0 for p in processes):
+        ready = [p for p in processes if p.arrival <= time and p.remaining > 0]
+        if not ready:
+            time += 1
+            continue
+        p = min(ready, key=lambda x: x.remaining)
+        if current != p:
+            cs += 1
+        current = p
+        start = time
+        time += 1
+        p.remaining -= 1
+        if p.remaining == 0:
+            p.finish = time
+        timeline.append((start, p.pid, time))
+    return timeline, cs
+
+# ---------------- ROUND ROBIN ----------------
+
+def round_robin(processes):
+    time = 0
+    queue = []
+    timeline = []
+    cs = 0
+    processes = sorted(processes, key=lambda x: x.arrival)
+    i = 0
+    while queue or i < len(processes):
+        while i < len(processes) and processes[i].arrival <= time:
+            queue.append(processes[i])
+            i += 1
+        if not queue:
+            time += 1
+            continue
+        p = queue.pop(0)
+        cs += 1
+        run = min(RR_QUANTUM, p.remaining)
+        timeline.append((time, p.pid, time + run))
+        time += run
+        p.remaining -= run
+        if p.remaining == 0:
+            p.finish = time
+        else:
+            queue.append(p)
+    return timeline, cs
+
+# ---------------- PRIORITY NON-PREEMPTIVE ----------------
+
+def priority_np(processes):
+    time = 0
+    completed = 0
+    timeline = []
+    cs = 0
+    while completed < len(processes):
+        ready = [p for p in processes if p.arrival <= time and p.remaining > 0]
+        if not ready:
+            time += 1
+            continue
+        p = min(ready, key=lambda x: x.priority)
+        timeline.append((time, p.pid, time + p.burst))
+        time += p.burst
+        p.remaining = 0
+        p.finish = time
+        completed += 1
+        cs += 1
+    return timeline, cs
+
+# ---------------- PRIORITY PREEMPTIVE ----------------
+
+def priority_p(processes):
+    time = 0
+    timeline = []
+    cs = 0
+    current = None
+    while any(p.remaining > 0 for p in processes):
+        ready = [p for p in processes if p.arrival <= time and p.remaining > 0]
+        if not ready:
+            time += 1
+            continue
+        p = min(ready, key=lambda x: x.priority)
+        if current != p:
+            cs += 1
+        current = p
+        start = time
+        time += 1
+        p.remaining -= 1
+        if p.remaining == 0:
+            p.finish = time
+        timeline.append((start, p.pid, time))
+    return timeline, cs
+
+# ---------------- METRICS (a–f) ----------------
+
+def metrics(processes, timeline, cs):
+    waits, turns = [], []
+    for p in processes:
+        turnaround = p.finish - p.arrival
+        waiting = turnaround - p.burst
+        waits.append(waiting)
+        turns.append(turnaround)
+
+    throughput = {T: sum(1 for p in processes if p.finish <= T) for T in [50, 100, 150, 200]}
+
+    total_time = timeline[-1][2]
+    cpu_time = sum(p.burst for p in processes)
+    efficiency = cpu_time / (total_time + cs * CONTEXT_SWITCH_TIME)
+
+    return {
+        'max_wait': max(waits),
+        'avg_wait': sum(waits) / len(waits),
+        'max_turnaround': max(turns),
+        'avg_turnaround': sum(turns) / len(turns),
+        'throughput': throughput,
+        'cpu_efficiency': efficiency,
+        'context_switch': cs
+    }
+
+# ---------------- THREAD RUNNER ----------------
+
+def run(algo, filename):
+    processes = copy.deepcopy(read_csv('processes.csv'))
+    timeline, cs = algo(processes)
+    result = metrics(processes, timeline, cs)
+    with open(filename, 'w') as f:
+        f.write(str(timeline) + '\n')
+        f.write(str(result))
+
+# ---------------- MAIN ----------------
+
+if __name__ == '__main__':
+    threads = [
+        threading.Thread(target=run, args=(fcfs, 'fcfs_results.txt')),
+        threading.Thread(target=run, args=(sjf_np, 'sjf_nonpreemptive.txt')),
+        threading.Thread(target=run, args=(sjf_p, 'sjf_preemptive.txt')),
+        threading.Thread(target=run, args=(round_robin, 'round_robin.txt')),
+        threading.Thread(target=run, args=(priority_np, 'priority_nonpreemptive.txt')),
+        threading.Thread(target=run, args=(priority_p, 'priority_preemptive.txt')),
+    ]
+
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    print('Tüm CPU zamanlama algoritmaları eş zamanlı olarak çalıştırıldı.')
+
