@@ -98,8 +98,9 @@ Sonuçlar proje raporunda tablo ve yorumlar ile sunulmuştur.
 
 Proje raporunun **etkileşimli web sayfası** versiyonuna aşağıdaki bağlantıdan erişilebilir:
 
-🔗 **GitHub Pages Linki:**
+🔗 **GitHub Pages Linki:**\
 👉 [https://nurbuyukk.github.io/REPOADI/](https://KULLANICIADI.github.io/REPOADI/)
+
 
 ---
 
