@@ -98,8 +98,9 @@ Sonuçlar proje raporunda tablo ve yorumlar ile sunulmuştur.
 
 Proje raporunun **etkileşimli web sayfası** versiyonuna aşağıdaki bağlantıdan erişilebilir:
 
-🔗 **GitHub Pages Linki:**  
-👉 https://nurbuyukk.github.io/cpu-scheduling-project/
+🔗 **GitHub Pages Linki:**  [
+👉 https://nurbuyukk.github.io/cpu-scheduling-project/](https://nurbuyukk.github.io/cpu-zamanlama-projesi/
+)
 
 
 
